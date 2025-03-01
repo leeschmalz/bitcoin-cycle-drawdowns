@@ -2,6 +2,7 @@ library(data.table)
 library(dplyr)
 library(ggplot2)
 library(plotly)
+library(scales)
 
 # downloaded from https://www.investing.com/crypto/bitcoin/historical-data
 bitcoin_data <- fread('data/bitcoin_data.csv') %>%
@@ -13,18 +14,6 @@ bitcoin_data <- fread('data/bitcoin_data.csv') %>%
     Low = as.numeric(gsub(",", "", Low))
   ) %>% select(Date, Price, Open, High, Low)
   
-p <- ggplot(bitcoin_data, aes(x=Date, y=Price)) +
-  geom_line() +
-  scale_y_log10()
-
-cycle1_start_date <- bitcoin_data %>% filter(Date >= as.Date('2014-08-01') & Date <= as.Date('2018-08-01')) %>% filter(min(Price) == Price) %>% pull(Date)
-cycle1_end_date <- bitcoin_data %>% filter(Date >= as.Date('2014-08-01') & Date <= as.Date('2018-08-01')) %>% filter(max(Price) == Price) %>% pull(Date)
-cycle2_start_date <- bitcoin_data %>% filter(Date >= as.Date('2018-08-01') & Date <= as.Date('2022-01-01')) %>% filter(min(Price) == Price) %>% pull(Date)
-cycle2_end_date <- bitcoin_data %>% filter(Date >= as.Date('2018-08-01') & Date <= as.Date('2022-01-01')) %>% filter(max(Price) == Price) %>% pull(Date)
-
-cycle1 <- bitcoin_data %>% filter(Date>=cycle1_start_date & Date<=cycle1_end_date)
-cycle2 <- bitcoin_data %>% filter(Date>=cycle2_start_date & Date<=cycle2_end_date)
-
 get_drawdowns <- function(data, lookahead_days = 30, drawdown_threshold = 0.2) {
   data <- data %>% arrange(Date)
   drawdowns <- data.frame()
@@ -66,7 +55,7 @@ get_drawdowns <- function(data, lookahead_days = 30, drawdown_threshold = 0.2) {
   return(drawdowns)
 }
 
-plot_cycle <- function(cycle_data, cycle_drawdowns){
+plot_cycle <- function(cycle_data, cycle_drawdowns, year_title){
   p <- ggplot(cycle_data, aes(x = Date, y = Price)) +
     geom_line() +   
     geom_rect(data = cycle_drawdowns, 
@@ -91,18 +80,36 @@ plot_cycle <- function(cycle_data, cycle_drawdowns){
                   color = 'darkred'),
               vjust = -0.5,
               inherit.aes = FALSE) +
-    scale_y_log10() +
+    scale_y_log10(labels = comma) +
     theme_bw() +
-    theme(legend.position = 'none')
+    theme(legend.position = 'none') +
+    labs(caption = 'Drawdowns measured from Daily Open to Daily Open')
+  
+  p <- p + ggtitle(paste0(year_title, ' Cycle Drawdowns'))
   
   return(p)
 }
 
+# main
+cycle1_start_date <- bitcoin_data %>% filter(Date >= as.Date('2014-08-01') & Date <= as.Date('2018-08-01')) %>% filter(min(Price) == Price) %>% pull(Date)
+cycle1_end_date <- bitcoin_data %>% filter(Date >= as.Date('2014-08-01') & Date <= as.Date('2018-08-01')) %>% filter(max(Price) == Price) %>% pull(Date)
+cycle2_start_date <- bitcoin_data %>% filter(Date >= as.Date('2018-08-01') & Date <= as.Date('2022-01-01')) %>% filter(min(Price) == Price) %>% pull(Date)
+cycle2_end_date <- bitcoin_data %>% filter(Date >= as.Date('2018-08-01') & Date <= as.Date('2022-01-01')) %>% filter(max(Price) == Price) %>% pull(Date)
+cycle3_start_date <- bitcoin_data %>% filter(Date >= as.Date('2022-08-01') & Date <= Sys.Date()) %>% filter(min(Price) == Price) %>% pull(Date)
+cycle3_end_date <- Sys.Date()
+
+cycle1 <- bitcoin_data %>% filter(Date>=cycle1_start_date & Date<=cycle1_end_date)
+cycle2 <- bitcoin_data %>% filter(Date>=cycle2_start_date & Date<=cycle2_end_date)
+cycle3 <- bitcoin_data %>% filter(Date>=cycle3_start_date & Date<=cycle3_end_date)
+
 cycle1_drawdowns <- get_drawdowns(cycle1, lookahead_days = 60, drawdown_threshold = 0.25)
-cycle2_drawdowns <- get_drawdowns(cycle2, lookahead_days = 175, drawdown_threshold = 0.17)
+cycle2_drawdowns <- get_drawdowns(cycle2, lookahead_days = 175, drawdown_threshold = 0.175)
+cycle3_drawdowns <- get_drawdowns(cycle3, lookahead_days = 60, drawdown_threshold = 0.175)
 
-cycle1_drawdown_plot <- plot_cycle(cycle1, cycle1_drawdowns) + ggtitle('2016 Cycle Drawdowns')
-cycle2_drawdown_plot <- plot_cycle(cycle2, cycle2_drawdowns %>% filter(drawdown_start_date != as.Date('2019-06-23') & drawdown_start_date != as.Date('2019-06-24')) ) + ggtitle('2020 Cycle Drawdowns')
+cycle1_drawdown_plot <- plot_cycle(cycle1, cycle1_drawdowns, '2016')
+cycle2_drawdown_plot <- plot_cycle(cycle2, cycle2_drawdowns %>% filter(drawdown_start_date != as.Date('2019-06-23') & drawdown_start_date != as.Date('2019-06-24')), '2020')
+cycle3_drawdown_plot <- plot_cycle(cycle3, cycle3_drawdowns %>% filter(drawdown_start_date != as.Date('2024-06-06')), '2024')
 
-cycle1_drawdown_plot
-cycle2_drawdown_plot
+ggsave(plot = cycle1_drawdown_plot, filename = './plots/cycle1_drawdown_plot.png', width=10, height=6)
+ggsave(plot = cycle2_drawdown_plot, filename = './plots/cycle2_drawdown_plot.png', width=10, height=6)
+ggsave(plot = cycle3_drawdown_plot, filename = './plots/cycle3_drawdown_plot.png', width=10, height=6)
