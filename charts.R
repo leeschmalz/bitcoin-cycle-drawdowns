@@ -90,6 +90,36 @@ plot_cycle <- function(cycle_data, cycle_drawdowns, year_title){
   return(p)
 }
 
+merge_overlapping_drawdowns <- function(drawdowns_df) {
+  # Ensure the data is sorted by start date
+  drawdowns_df <- drawdowns_df %>% arrange(drawdown_start_date)
+  
+  merged <- list()
+  current <- drawdowns_df[1, ]
+  
+  for (i in 2:nrow(drawdowns_df)) {
+    next_row <- drawdowns_df[i, ]
+    
+    if (next_row$drawdown_start_date <= current$drawdown_end_date) {
+      # They overlap, merge them
+      current$drawdown_end_date <- max(current$drawdown_end_date, next_row$drawdown_end_date)
+      current$drawdown_start_price <- current$drawdown_start_price # keep original start price
+      current$drawdown_end_price <- next_row$drawdown_end_price    # use last end price
+      current$drawdown_percent <- (current$drawdown_start_price - current$drawdown_end_price) / current$drawdown_start_price
+    } else {
+      # No overlap, save current and move on
+      merged <- append(merged, list(current))
+      current <- next_row
+    }
+  }
+  
+  # Append the last interval
+  merged <- append(merged, list(current))
+  
+  # Return as tibble
+  bind_rows(merged)
+}
+
 # main
 cycle1_start_date <- bitcoin_data %>% filter(Date >= as.Date('2014-08-01') & Date <= as.Date('2018-08-01')) %>% filter(min(Price) == Price) %>% pull(Date)
 cycle1_end_date <- bitcoin_data %>% filter(Date >= as.Date('2014-08-01') & Date <= as.Date('2018-08-01')) %>% filter(max(Price) == Price) %>% pull(Date)
@@ -104,7 +134,8 @@ cycle3 <- bitcoin_data %>% filter(Date>=cycle3_start_date & Date<=cycle3_end_dat
 
 cycle1_drawdowns <- get_drawdowns(cycle1, lookahead_days = 60, drawdown_threshold = 0.25)
 cycle2_drawdowns <- get_drawdowns(cycle2, lookahead_days = 175, drawdown_threshold = 0.175)
-cycle3_drawdowns <- get_drawdowns(cycle3, lookahead_days = 60, drawdown_threshold = 0.175)
+cycle3_drawdowns <- get_drawdowns(cycle3, lookahead_days = 60, drawdown_threshold = 0.20)
+cycle3_drawdowns <- merge_overlapping_drawdowns(cycle3_drawdowns)
 
 cycle1_drawdown_plot <- plot_cycle(cycle1, cycle1_drawdowns, '2016')
 cycle2_drawdown_plot <- plot_cycle(cycle2, cycle2_drawdowns %>% filter(drawdown_start_date != as.Date('2019-06-23') & drawdown_start_date != as.Date('2019-06-24')), '2020')
