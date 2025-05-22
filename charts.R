@@ -133,7 +133,7 @@ cycle2 <- bitcoin_data %>% filter(Date>=cycle2_start_date & Date<=cycle2_end_dat
 cycle3 <- bitcoin_data %>% filter(Date>=cycle3_start_date & Date<=cycle3_end_date)
 
 cycle1_drawdowns <- get_drawdowns(cycle1, lookahead_days = 60, drawdown_threshold = 0.25)
-cycle2_drawdowns <- get_drawdowns(cycle2, lookahead_days = 175, drawdown_threshold = 0.175)
+cycle2_drawdowns <- get_drawdowns(cycle2, lookahead_days = 175, drawdown_threshold = 0.20)
 cycle3_drawdowns <- get_drawdowns(cycle3, lookahead_days = 60, drawdown_threshold = 0.20)
 cycle3_drawdowns <- merge_overlapping_drawdowns(cycle3_drawdowns)
 
