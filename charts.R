@@ -5,7 +5,7 @@ library(plotly)
 library(scales)
 
 # downloaded from https://www.investing.com/crypto/bitcoin/historical-data
-bitcoin_data <- fread('data/bitcoin_data_5_22_2025.csv') %>%
+bitcoin_data <- fread('data/bitcoin_data_11_23_2025.csv') %>%
   mutate(
     Date = as.Date(Date, "%m/%d/%Y"),
     Price = as.numeric(gsub(",", "", Price)),
